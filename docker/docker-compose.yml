@@ -1,0 +1,91 @@
+version: '3'
+
+networks:
+  # Shared network between services
+  go-poc:
+    driver: bridge
+
+services:
+
+  # Mariadb service
+  mariadb:
+    image: ${COMPOSE_PROJECT_NAME}/mariadb
+    build:
+      context: ./mariadb/
+      args:
+        - UID=${DOCKER_UID}
+        - GID=${DOCKER_GID}
+        - VERSION=${MARIADB_VERSION}
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - MARIADB_USER=${COMPOSE_PROJECT_NAME}
+      - MARIADB_PASSWORD=${COMPOSE_PROJECT_NAME}
+      - MARIADB_DATABASE=${COMPOSE_PROJECT_NAME}
+    ports:
+      - 3306:3306
+    volumes:
+      - mariadb_data:/bitnami/mariadb
+      # Permit to import sql files when the container is executed for the first time
+      - ./mariadb/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d:ro
+    networks:
+      - go-poc
+
+  # MongoDB service
+  mongodb:
+    image: ${COMPOSE_PROJECT_NAME}/mongodb
+    build:
+      context: ./mongodb/
+      args:
+        - UID=${DOCKER_UID}
+        - GID=${DOCKER_GID}
+        - VERSION=${MONGODB_VERSION}
+    environment:
+      - MONGODB_ROOT_PASSWORD=${COMPOSE_PROJECT_NAME}
+      - MONGODB_USERNAME=${COMPOSE_PROJECT_NAME}
+      - MONGODB_PASSWORD=${COMPOSE_PROJECT_NAME}
+      - MONGODB_DATABASE=${COMPOSE_PROJECT_NAME}
+      - BITNAMI_DEBUG=true
+    ports:
+      - 27017:27017
+    volumes:
+      - mongo_data:/bitnami/mongodb
+      # Permit to import sql files when the container is executed for the first time
+      - ./mongodb/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d:ro
+    networks:
+      - go-poc
+
+  # Redis service
+  redis:
+    image: ${COMPOSE_PROJECT_NAME}/redis
+    build:
+      context: ./redis/
+      args:
+        - UID=${DOCKER_UID}
+        - GID=${DOCKER_GID}
+        - VERSION=${REDIS_VERSION}
+    ports:
+      - 6379:6379
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    networks:
+      - go-poc
+
+  # Maildev service
+  maildev:
+    image: ${COMPOSE_PROJECT_NAME}/maildev
+    build:
+      context: ./maildev/
+      args:
+        - VERSION=${MAILDEV_VERSION}
+    command: bin/maildev --web 80 --smtp 25 --hide-extensions STARTTLS
+    ports:
+      - 1080:80
+    networks:
+      - go-poc
+
+volumes:
+  # Use volume to keep database
+  mariadb_data:
+    driver: local
+  mongo_data:
+    driver: local
